@@ -26,54 +26,54 @@ class UserAdmin(DjangoUserAdmin):
         try:
             a = User_T.objects.filter(user=obj)
             Notification(
-                user=a[0], Notification="Your details have been updated.").save()
+                user=a[0], notification="Your details have been updated.").save()
         except:
             pass
 
 
 class CourseInline(admin.StackedInline):
     model = Course
-    extra = 0
+    extra = 1
 
 
 class RoomInline(admin.StackedInline):
     model = Room
-    extra = 0
+    extra = 1
 
 
 class ExamInline(admin.StackedInline):
     model = Exam
-    extra = 0
+    extra = 1
 
 
 class RoomAdmin(admin.ModelAdmin):
     model = Room
-    extra = 0
+    extra = 1
 
 
 class ExamAllocationInline(admin.TabularInline):
     model = ExamAllocation
-    extra = 0
+    extra = 1
 
 
 class ExamAdmin(admin.ModelAdmin):
     model = Exam
-    extra = 0
+    extra = 1
 
 
 class RoomAllocationInline(admin.StackedInline):
     model = RoomAllocation
-    extra = 0
+    extra = 1
 
 
 class AssignDutyInline(admin.TabularInline):
     model = AssignDuty
-    extra = 0
+    extra = 1
 
 
 class TakeDutyInline(admin.TabularInline):
     model = TakeDuty
-    extra = 0
+    extra = 1
 
 
 admin.site.unregister(Group)

@@ -2,14 +2,15 @@ import graphene
 from graphene_django.registry import Registry
 from graphene.relay import Node
 from graphene import ObjectType, Connection, Node, Int
-from examaltersys.models import FacultyCount, TakeDutyCount, Exam, User_T, ExamAllocation, Room, AssignDuty, TakeDuty, Course, RoomAllocation, Notification, NotificationCount
+from examaltersys.models import FacultyCount, TakeDutyCount, Exam, User_T, ExamAllocation, Room, AssignDuty, TakeDuty, Course, RoomAllocation, NotificationCount
+from examaltersys.models import Notification as NotificationModel
 from graphene_django.types import DjangoObjectType, ObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from django.contrib.auth.models import User
 import graphql_jwt
 from django_graphene_permissions import permissions_checker
 from django_graphene_permissions.permissions import IsAuthenticated
-from django.core.exceptions import ValidationError
+from django.core.exceptions import *
 from graphene import Time
 import datetime
 from django.contrib.auth import get_user_model
@@ -110,7 +111,7 @@ class RoomAllocationType(DjangoObjectType):
 
 class NotificationType(DjangoObjectType):
     class Meta:
-        model = Notification
+        model = NotificationModel
 
 
 class NotificationCountType(DjangoObjectType):
@@ -160,6 +161,10 @@ class Query(ObjectType):
         users = User_T.objects.filter(type='faculty')
         return users
 
+    def resolve_courses(self, info):
+        courses = Course.objects.all()
+        return courses
+
     def resolve_rooms(self, info):
         rooms = Room.objects.all()
         return rooms
@@ -184,7 +189,7 @@ class Query(ObjectType):
         return userts
 
     def resolve_notifications(self, info):
-        notifications = Notification.objects.all()
+        notifications = NotificationModel.objects.all()
         return notifications
 
 
@@ -199,9 +204,15 @@ class ExamInput(graphene.InputObjectType):
     slot = graphene.String()
 
 
+class RoomInput(graphene.InputObjectType):
+    Room_ID = graphene.Int()
+    Block = graphene.String()
+    capacity = graphene.Int()
+
+
 class NotificationInput(graphene.InputObjectType):
-    notification = graphene.String()
     username = graphene.String()
+    notification = graphene.String()
 
 
 class TakeDutyInput(graphene.InputObjectType):
@@ -215,12 +226,16 @@ class AssignDuty(graphene.Mutation):
     ok = graphene.Boolean()
     takeduty = graphene.Field(TakeDutyType)
 
+    class Arguments:
+        id = graphene.ID()
+
     @ staticmethod
     @permissions_checker([IsAuthenticated])
     def mutate(root, info, input):
         ok = True
         takeduty_instance = TakeDuty(faculty=graphene.Field(
-            UserType, faculty_name=input.faculty_name, id=graphene.Int()), exam=graphene.Field(
+            UserType, faculty_name=input.faculty_name, id=graphene.Int()),
+            exam=graphene.Field(
             ExamType, faculty_name=input.faculty_name, id=graphene.Int()))
         takeduty_instance.save()
         return AssignDuty(ok=ok, takeduty=takeduty_instance)
@@ -232,15 +247,18 @@ class DeleteDuty(graphene.Mutation):
     ok = graphene.Boolean()
     deleteduty = graphene.Field(TakeDutyType)
 
+    class Arguments:
+        id = graphene.ID()
+
     @ staticmethod
     @ permissions_checker([IsAuthenticated])
     def mutate(self, info, id):
         ok = False
-        deleteduty = Exam.objects.get(pk=id)
-        if deleteduty is not None:
+        deleteduty_inst = TakeDuty.objects.get(pk=id)
+        if deleteduty_inst is not None:
             ok = True
-            deleteduty.delete()
-        return DeleteDuty(ok=ok, deleteduty=deleteduty)
+            deleteduty_inst.delete()
+        return DeleteDuty(ok=ok, deleteduty=deleteduty_inst)
 
 # 3
 
@@ -267,42 +285,8 @@ class CreateExam(graphene.Mutation):
 # 4
 
 
-class CreateNotification(graphene.Mutation):
-    notification = graphene.String()
-    ok = graphene.Boolean()
-    username = graphene.String()
-
-    class Arguments:
-        input = NotificationInput(required=True)
-
-    @ staticmethod
-    @permissions_checker([IsAuthenticated])
-    def mutate(self, info, input):
-        ok = True
-        notf_instance = Notification(user=graphene.Field(
-            UserType, username=input.username, id=graphene.Int()), notification=input.notification)
-        notf_instance.save()
-        return CreateNotification(ok=ok, exam=notf_instance)
-
 # 5
 
-
-class DeleteNotification(graphene.Mutation):
-    notification = graphene.Field(NotificationType)
-    ok = graphene.Boolean()
-
-    class Arguments:
-        id = graphene.ID()
-
-    @ staticmethod
-    @ permissions_checker([IsAuthenticated])
-    def mutate(self, info, id):
-        ok = False
-        notification = Exam.objects.get(pk=id)
-        if notification is not None:
-            ok = True
-            notification.delete()
-        return DeleteNotification(ok=ok, notification=notification)
 
 # 6
 
@@ -318,25 +302,24 @@ class DeleteExam(graphene.Mutation):
     @ permissions_checker([IsAuthenticated])
     def mutate(self, info, id):
         ok = False
-        exam = Exam.objects.get(pk=id)
-        if exam is not None:
+        exam_inst = Exam.objects.get(pk=id)
+        if exam_inst is not None:
             ok = True
-            exam.delete()
-        return DeleteExam(exam=exam)
+            exam_inst.delete()
+        return DeleteExam(ok=ok, exam=exam_inst)
 
 # 7
 
 
 class UpdateExam(graphene.Mutation):
+    class Arguments:
+        input = ExamInput(required=True)
     ok = graphene.Boolean()
     exam = graphene.Field(ExamType)
 
-    class Arguments:
-        exam_data = ExamInput(required=True)
-
     @ staticmethod
     @ permissions_checker([IsAuthenticated])
-    def mutate(self, info, exam_data=None, user_data=None):
+    def mutate(self, info, input):
         exam_instance = Exam.objects.filter(
             exam_name=input.exam_name, date=input.date, start_time=input.start_time, end_time=input.end_time)
         if(exam_instance):
@@ -346,7 +329,6 @@ class UpdateExam(graphene.Mutation):
                                  end_time=input.end_time,
                                  duration=input.duration,
                                  slot=input.slot)
-            exam_instance = exam_instance[0]
             exam_instance.save()
             return UpdateExam(ok=ok, exam=exam_instance)
 
@@ -358,19 +340,54 @@ class UpdateRoom(graphene.Mutation):
     room = graphene.Field(ExamType)
 
     class Arguments:
-        room_data = ExamInput(required=True)
+        room_data = RoomInput(required=True)
 
     @ staticmethod
     @ permissions_checker([IsAuthenticated])
-    def mutate(self, info, room_data=None, user_data=None):
-        room_instance = Exam.objects.filter(
-            room_name=input.exam_name, date=input.date, start_time=input.start_time, end_time=input.end_time)
+    def mutate(self, info, room_data):
+        room_instance = Room.objects.filter(
+            Room_ID=room_data.Room_ID, Block=room_data.Block, capacity=room_data.capacity)
         if(room_instance):
             ok = True
             room_instance.update(
-                Room_ID=room_data.Room_ID, Block=room_data.Block, Capacity=room_data.Capacity)
+                Room_ID=room_data.Room_ID, Block=room_data.Block, capacity=room_data.capacity)
             room_instance.save()
-            return UpdateExam(ok=ok, exam=room_instance)
+            return UpdateRoom(ok=ok, room=room_instance)
+
+
+class CreateNotification(graphene.Mutation):
+    notif = graphene.Field(NotificationType)
+    ok = graphene.Boolean()
+
+    class Arguments:
+        input = NotificationInput(required=True)
+
+    @ staticmethod
+    @permissions_checker([IsAuthenticated])
+    def mutate(self, info, input):
+        ok = True
+        notf_instance = NotificationModel(user=graphene.Field(
+            UserType, username=input.username, id=graphene.Int()), notification=input.notification)
+        notf_instance.save()
+        return CreateNotification(ok=ok, notif=notf_instance)
+
+
+class DeleteNotification(graphene.Mutation):
+    notification = graphene.Field(NotificationType)
+    ok = graphene.Boolean()
+
+    class Arguments:
+        id = graphene.ID()
+
+    @ staticmethod
+    @ permissions_checker([IsAuthenticated])
+    def mutate(self, info, id):
+        ok = False
+        notification_inst = NotificationModel.objects.get(pk=id)
+        if notification_inst is not None:
+            ok = True
+            notification_inst.delete()
+        return DeleteNotification(notification=notification_inst)
 
 
 class Mutation(graphene.ObjectType):
@@ -378,9 +395,9 @@ class Mutation(graphene.ObjectType):
     update_exam = UpdateExam.Field()
     update_room = UpdateRoom.Field()
     delete_exam = DeleteExam.Field()
-    del_notification = DeleteNotification.Field()
     assign_duty = AssignDuty.Field()
     delete_duty = DeleteDuty.Field()
+    del_notification = DeleteNotification.Field()
     create_notification = CreateNotification.Field()
     token_auth = graphql_jwt.ObtainJSONWebToken.Field()
     verify_token = graphql_jwt.Verify.Field()

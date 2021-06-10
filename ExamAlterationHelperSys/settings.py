@@ -26,7 +26,7 @@ SECRET_KEY = 'ikhmf1_8&3qsim6en2wo5gh&evx(v=#k&yt%%lm-xmm1nx5ftm'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['*']
 # Application definition
 GRAPHENE = {
     'SCHEMA': 'ExamAlterationHelperSys.schema.schema',  # this file doesn't exist yet
@@ -166,3 +166,5 @@ STATICFILES_FINDERS = [
 STATIC_URL = '/static/'
 
 CORS_ORIGIN_ALLOW_ALL = True
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')

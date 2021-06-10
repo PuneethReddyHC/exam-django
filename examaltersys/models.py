@@ -9,6 +9,8 @@ from examaltersys.exceptions import *
 TYPE = [('examdutyofficer', 'EXAMDUTYOFFICER'),
         ('faculty', 'FACULTY'), ('admin', 'ADMIN')]
 
+# 1
+
 
 class Exam(models.Model):
     SUNDAY = 'SU'
@@ -50,6 +52,8 @@ class Exam(models.Model):
     def get_verbose_name(object):
         return object._meta.verbose_name
 
+# 2
+
 
 class User_T(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -70,7 +74,9 @@ class User_T(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         Notification(
-            user=self, Notification=str(self.faculty.user.username)+"have been added as a" + str(self.type)+".").save()
+            user=self, notification="has been added as a" + str(self.type)+".").save()
+
+# 3
 
 
 class FacultyCount(models.Model):
@@ -83,7 +89,7 @@ class FacultyCount(models.Model):
         verbose_name = 'FacultyCountObject'
         verbose_name_plural = 'FacultyCountObjects'
 
-# 8
+# 4
 
 
 class Course(models.Model):
@@ -97,6 +103,8 @@ class Course(models.Model):
         verbose_name = 'Course'
         verbose_name_plural = 'Courses'
 
+# 5
+
 
 class Room(models.Model):
     Room_ID = models.CharField(max_length=30)
@@ -108,7 +116,7 @@ class Room(models.Model):
         verbose_name = 'Room'
         verbose_name_plural = 'Rooms'
 
-# 3
+# 6
 
 
 class RoomAllocation(models.Model):
@@ -136,9 +144,9 @@ class RoomAllocation(models.Model):
 
     class Meta:
         verbose_name = 'Room Allocation'
-        verbose_name_plural = 'Room Allocation'
+        verbose_name_plural = 'Room Allocations'
 
-# 4
+# 7
 
 
 class ExamAllocation(models.Model):
@@ -150,13 +158,19 @@ class ExamAllocation(models.Model):
         Room, on_delete=models.DO_NOTHING, default=None)
 
     def __str__(self):
-        return "ExamAllocation"+str(self.id)
+        return "ExamAllocation "+str(self.id)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
+
+    class Meta:
+        verbose_name = 'Exam Allocation'
+        verbose_name_plural = 'Exam Allocations'
+
+# 8
 
 
 class TakeDuty(models.Model):
@@ -166,6 +180,8 @@ class TakeDuty(models.Model):
         User_T, related_name='takers', on_delete=models.DO_NOTHING, default=None)
     status = models.CharField(
         max_length=30, null=True, blank=True, default='available')
+    reason = models.CharField(
+        max_length=100, null=True, blank=True, default='Nil', verbose_name='Reason(for unable to attend)')
 
     def clean(self):
         if(str(self.faculty.type) == 'faculty'):
@@ -174,10 +190,10 @@ class TakeDuty(models.Model):
                     str(self.faculty.user.username), "is available to take duty")
             elif(self.status == 'unable'):
                 Notification(
-                    user=self.faculty, Notification=str(self.faculty.user.username)+"was unable to attend duty for "+str(self.exam.exam.id)+"due to "+str(self.reason)).save()
+                    user=self.faculty, notification=str(self.faculty.user.username)+"was unable to attend duty for "+str(self.exam.exam.id)).save()
             elif(self.status == 'completed'):
                 Notification(
-                    user=self.faculty, Notification=str(self.faculty.user.username)+"has completed duty for"+str(self.exam.exam.id)).save()
+                    user=self.faculty, notification=str(self.faculty.user.username)+"has completed duty for"+str(self.exam.exam.id)).save()
             else:
                 raise NameError("Not a valid status")
         else:
@@ -186,7 +202,7 @@ class TakeDuty(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         Notification(
-            user=self.faculty, Notification=str(self.faculty.user.username) + "have been assigned duty for " + str(self.exam.exam.id)).save()
+            user=self.faculty, notification=str(self.faculty.user.username) + "have been assigned duty for " + str(self.exam.exam.id)).save()
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
@@ -194,6 +210,8 @@ class TakeDuty(models.Model):
     class Meta:
         verbose_name = 'TakeDuty'
         verbose_name_plural = 'TakeDuties'
+
+ # 9
 
 
 class TakeDutyCount(models.Model):
@@ -209,7 +227,7 @@ class TakeDutyCount(models.Model):
     class Meta:
         verbose_name = 'TakeDutyCountObject'
         verbose_name_plural = 'TakeDutyCountObjects'
-# 5
+# 10
 
 
 class AssignDuty(models.Model):
@@ -234,6 +252,8 @@ class AssignDuty(models.Model):
         verbose_name = 'AssignDuty'
         verbose_name_plural = 'AssignDuties'
 
+# 11
+
 
 class Notification(models.Model):
     user = models.ForeignKey(User_T, on_delete=models.CASCADE, default=None)
@@ -241,7 +261,7 @@ class Notification(models.Model):
         max_length=255)
 
     def __str__(self):
-        return str(self.user)+" -Notification:"+self.Notification
+        return str(self.user)+" -Notification:"+self.notification
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -252,6 +272,8 @@ class Notification(models.Model):
     class Meta:
         verbose_name = 'Notification'
         verbose_name_plural = 'Notifications'
+
+# 12
 
 
 class NotificationCount(models.Model):
